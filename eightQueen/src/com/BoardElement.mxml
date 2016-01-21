@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Canvas xmlns:mx="http://www.adobe.com/2006/mxml" currentState="empty">
+	<mx:states>
+		<mx:State name="empty">
+		<mx:SetProperty target="{img}" name="alpha" value="0"/>
+		</mx:State>
+		<mx:State name="queen">
+		<mx:SetProperty target="{img}" name="alpha" value="1"/>
+		</mx:State>
+	</mx:states>
+	<mx:transitions>
+		<mx:Transition fromState="empty" toState="queen">
+			<mx:Fade target="{img}" alphaFrom="0" alphaTo="1" duration="400"/>
+		</mx:Transition>
+		<mx:Transition fromState="queen" toState="empty">
+			<mx:Fade target="{img}" alphaFrom="1" alphaTo="0" duration="400"/>
+		</mx:Transition>
+	</mx:transitions>
+	<mx:Script>
+		<![CDATA[
+			private const ALPHA:Number=0.4;
+			private const ALPHA_T:Number=0;
+			
+			public function set bgColor(color:Number):void{
+				var i:Boolean=isNaN(bgColor);
+				var f:Boolean=isNaN(color);
+				if(i&&!f){
+					//原本是透明 後來變顏色
+					bg.setStyle("backgroundColor",color);
+					stopAllEffects();
+					fadeIn.play();
+				}else if(!i&&f){
+					//原本有顏色 後來變透明
+					stopAllEffects();
+					fadeOut.play();
+				}else{
+					//直接指定顏色
+					bg.setStyle("backgroundColor",color);
+				}
+			}
+			public function stopAllEffects():void{
+				if(fadeIn.isPlaying)fadeIn.end();
+				if(fadeOut.isPlaying)fadeOut.end();
+			}
+			public function get bgColor():*{
+				return bg.getStyle("backgroundColor")==null?NaN:bg.getStyle("backgroundColor");
+			}
+		]]>
+	</mx:Script>
+	<mx:Canvas id="bg" width="100%" height="100%" alpha="{ALPHA}"/>
+	<mx:Image id="img" source="@Embed(source='../queen.png')" width="67" height="67"/>
+	
+	<mx:Fade id="fadeIn" target="{bg}" alphaFrom="{ALPHA_T}" alphaTo="{ALPHA}" duration="400"/>
+	<mx:Fade id="fadeOut" target="{bg}" alphaFrom="{ALPHA}" alphaTo="{ALPHA_T}" duration="400" effectEnd="bg.setStyle('backgroundColor',NaN)"/>
+</mx:Canvas>

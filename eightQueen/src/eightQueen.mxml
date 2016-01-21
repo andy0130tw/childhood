@@ -1,0 +1,476 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="vertical" creationComplete="init()" maxHeight="640" maxWidth="1024" xmlns:com="com.*" verticalAlign="middle" width="1024" height="600">
+	<mx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			import com.*;
+			import mx.core.UIComponent;
+		
+			[Bindable]public var solutionLib:SolutionSet=null;
+
+			//常數
+			public const GRAY:Number=0x333333;
+			public const GREEN:Number=0x00FF00;
+			public const RED:Number=0xFF0000;
+			public const TRANSPARENT:Number=NaN;
+			
+			[Bindable]public var so:SharedObject;
+			
+			[Bindable]public var boardSerial:Array=new Array();
+			[Bindable]public var queenAmount:int=0;
+			[Bindable]public var foundCount:ArrayCollection=new ArrayCollection([]);
+			[Bindable]public var nowScore:int=0;
+			
+			[Bindable]public var col:Array=new Array(8);
+			[Bindable]public var row:Array=new Array(8);
+			[Bindable]public var d1:Array=new Array(15);
+			[Bindable]public var d2:Array=new Array(15);
+			
+			public function init():void{
+				//建立棋盤
+				for(var i:int=1;i<=8;i++){
+					for(var j:int=1;j<=8;j++){
+						boardSerial.push({x:j,y:i});
+					}
+				}
+				boardRep.dataProvider=boardSerial;
+				//初始化右鍵選單
+				var mycm:ContextMenu=new ContextMenu();
+				var item1:ContextMenuItem=new ContextMenuItem("清除所有紀錄");
+				item1.addEventListener(ContextMenuEvent.MENU_ITEM_SELECT,function(e:Event):void{clearConfirm.visible=true;setTimeout(function():void{clearConfirm.visible=false},2400)});
+				mycm.hideBuiltInItems();
+				mycm.customItems.push(item1);
+				mycm.customItems.push(new ContextMenuItem("Eight Queens 八皇后 by Andy~★",true,false));
+				this.contextMenu=mycm;
+				
+				//初始化檢查座標
+				clearCheck();
+				//初始化解答
+				solutionLib=new SolutionSet(solutionLib_raw);
+				//初始化求解表
+				for(var l:int=0;l<12;l++){
+					foundCount.addItem({num: l});
+				}
+				
+				//初始化本機儲存區
+				so=SharedObject.getLocal("EightQueen");
+				//把解答尋找情形讀回
+				if(so.data.sol!=null){
+					readSO();
+				}else{
+					//存入
+					saveSO();
+				}
+				//so.clear();
+				//初始化分數
+				updateScore();
+			}
+			
+			public function readSO():void{
+					for(var i:int=0;i<12;i++){
+						(solutionLib.solArray[i] as Solution).found=so.data.sol[i];
+					}
+			}
+			
+			public function saveSO():void{
+					so.data.sol=new Array(12);
+					for(var i:int=0;i<12;i++){
+						so.data.sol[i]=(solutionLib.solArray[i] as Solution).found;
+					}
+					so.flush();		
+			}
+			
+			public function resetAll():void{
+				//重新設定所有變數
+				solutionLib=new SolutionSet(solutionLib_raw);
+				//更新求解清單
+				foundCount.refresh();
+				//清除版面
+				clearBoard();
+				//初始化分數
+				updateScore();
+				//清除存檔
+				so.clear();
+				so.flush();
+				//把自己隱藏起來
+				clearConfirm.visible=false;
+			}
+			
+			public function buttonClick(e:Event):void{
+				//放皇后
+				var currentState:String=(e.currentTarget as BoardElement).currentState;
+				var x:uint=e.currentTarget.getRepeaterItem().x;
+				var y:uint=e.currentTarget.getRepeaterItem().y;
+				if(currentState=="empty"){
+					//檢查其他皇后位置
+					if(isLegal(x,y)){
+						//加入皇后&檢查位置
+						col[x-1]=false;
+						row[y-1]=false;
+						d1[x+y-2]=false;
+						d2[y-x+7]=false;
+						(e.currentTarget as BoardElement).currentState="queen";
+						queenAmount++;
+						//一旦成功
+						//if(queenAmount==8)setAllColor(GREEN);
+						refreshGray();
+					}
+				}else{
+					//消掉皇后&檢查位置
+					col[x-1]=true;
+					row[y-1]=true;
+					d1[x+y-2]=true;
+					d2[y-x+7]=true;
+					(e.currentTarget as BoardElement).currentState="empty";
+					queenAmount--;
+					refreshGray();
+				}
+				
+
+			}
+			public function clearCheck():void{
+				for(var i1:int=0;i1<=7;i1++){
+					col[i1]=true;
+					row[i1]=true;
+				}
+				for(var i2:int=0;i2<=14;i2++){
+					d1[i2]=true;
+					d2[i2]=true;
+				}
+				//皇后重置
+				queenAmount=0;
+			}
+			
+			public function refreshGray():void{
+				var flag:Boolean=false;
+				for(var y:uint=1;y<=8;y++){
+					for(var x:uint=1;x<=8;x++){
+						if(checkGray(x,y))flag=true;
+					}
+				}
+				if(!flag){
+					if(queenAmount==8){
+						checkAnswer();
+					}else{
+						setAllColor(RED);
+						vs_ind.selectedIndex=2;
+					}
+				}else{
+					vs_ind.selectedIndex=0;
+				}
+			}
+			
+			public function updateScore():void{
+				nowScore=0;
+				for(var i:int=0;i<12;i++){
+					var solCount:int=(solutionLib.solArray[i] as Solution).countFound;
+					if(solCount==1){
+						nowScore+=5;
+					}else if(solCount>1){
+						nowScore+=(solCount+4);
+					}
+				}
+				if(nowScore>=140){
+					vs_sol.selectedIndex=2;
+				}
+			}
+			
+			public function checkGray(x:uint,y:uint):Boolean{	
+					var _dump:Boolean=isLegal(x,y);
+					getElement(x,y).bgColor=_dump?TRANSPARENT:GRAY;
+					return _dump;
+				} 
+				
+			public function isLegal(x:uint,y:uint):Boolean{
+				//檢查所有對應的檢查座標
+				return col[x-1]&&row[y-1]&&d1[x+y-2]&&d2[y-x+7];
+			}
+				
+			public function getElement(x:uint,y:uint):BoardElement{
+					return boardElement[x+8*y-9];
+			}
+			
+			public function setAllColor(color:Number):void{
+				for(var y:uint=1;y<=8;y++){
+					for(var x:uint=1;x<=8;x++){
+						getElement(x,y).bgColor=color;
+					}
+				}
+			}
+			public function clearBoard():void{
+				for(var y:uint=1;y<=8;y++){
+					for(var x:uint=1;x<=8;x++){
+						//如果是皇后，把它拿掉
+						getElement(x,y).currentState="empty";
+					}
+				}
+				//重設
+				clearCheck();
+				refreshGray();
+			}
+
+			
+			public function getConfiguration():String{
+				var _dump:Array=[];
+				var rowflag:Boolean;
+				for(var y:uint=1;y<=8;y++){
+					rowflag=false;
+					for(var x:uint=1;x<=8&&!rowflag;x++){
+						if(getElement(x,y).currentState=="queen"){
+							rowflag=true;
+							_dump.push(x);
+						}
+					}
+				}
+				return _dump.join("");
+			}
+			
+			public function checkAnswer():void{
+				setAllColor(GREEN);
+				var _ansPos:int=solutionLib.checkAnswer(getConfiguration());
+				if(_ansPos>=0){
+					//新解
+					indicator1.text="獨立解 ";
+					indicator2.text="#"+String(_ansPos+1);
+				}else{
+					indicator1.text="重複了。";
+					indicator2.text="Sorry!";
+				}
+				vs_ind.selectedIndex=1;
+				//更新分數
+				updateScore();
+				//更新求解清單
+				foundCount.refresh();
+				solutionDetail.dataProvider=getAllSolution(solutionBox.selectedItem.num);
+				
+				//存檔
+				saveSO();
+			}
+			
+			public function solFN(item:Object):String{
+				var i:int=item.num;
+				var solCount:int=(solutionLib.solArray[i] as Solution).countFound;
+				var solTotal:int=(solutionLib.solArray[i] as Solution).sol.length;
+				var _dump:String;
+				if(solCount==0){
+					_dump="尚未找到";
+				}else if(solCount==solTotal){
+					_dump="全部找齊！";
+				}else{
+					_dump="找到 "+String(solCount)+" 解，共 "+String(solTotal)+" 解";
+				}
+				return "獨立解 #"+(i+1<10?"0":"")+String(i+1)+"   "+_dump;
+			}
+			
+			public function detailFN(item:Object):String{
+				return item.found?item.sol:"<未找到>";
+			}
+			
+			public function getAllSolution(solNum:int):ArrayCollection{
+				var _dump:ArrayCollection=new ArrayCollection([]);
+				var sol:Array=(solutionLib.solArray[solNum] as Solution).sol;
+				var solFound:Array=(solutionLib.solArray[solNum] as Solution).found;
+				for(var i:int=0;i<sol.length;i++){
+					_dump.addItem({sol: sol[i],found: solFound[i]});
+				}
+				return _dump;
+			}
+		]]>
+	</mx:Script>
+	
+	<mx:Array id="solutionLib_raw">
+		<mx:Array>
+		<!--1. 15863724-->
+<mx:String>15863724</mx:String>
+<mx:String>17582463</mx:String>
+<mx:String>36428571</mx:String>
+<mx:String>84136275</mx:String>
+<mx:String>57263148</mx:String>
+<mx:String>63571428</mx:String>
+<mx:String>82417536</mx:String>
+<mx:String>42736851</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--2. 16837425-->
+<mx:String>16837425</mx:String>
+<mx:String>17468253</mx:String>
+<mx:String>35286471</mx:String>
+<mx:String>83162574</mx:String>
+<mx:String>47526138</mx:String>
+<mx:String>64713528</mx:String>
+<mx:String>82531746</mx:String>
+<mx:String>52473861</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--3: 24683175-->
+<mx:String>24683175</mx:String>
+<mx:String>61528374</mx:String>
+<mx:String>47382516</mx:String>
+<mx:String>75316824</mx:String>
+<mx:String>42861357</mx:String>
+<mx:String>52617483</mx:String>
+<mx:String>38471625</mx:String>
+<mx:String>57138642</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--4: 25713864-->
+<mx:String>25713864</mx:String>
+<mx:String>41582736</mx:String>
+<mx:String>63728514</mx:String>
+<mx:String>74286135</mx:String>
+<mx:String>53168247</mx:String>
+<mx:String>36271485</mx:String>
+<mx:String>58417263</mx:String>
+<mx:String>46831752</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--5: 25741863-->
+<mx:String>25741863</mx:String>
+<mx:String>51842736</mx:String>
+<mx:String>63724815</mx:String>
+<mx:String>74258136</mx:String>
+<mx:String>63185247</mx:String>
+<mx:String>36275184</mx:String>
+<mx:String>48157263</mx:String>
+<mx:String>36814752</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--6: 26174835-->
+<mx:String>26174835</mx:String>
+<mx:String>64285713</mx:String>
+<mx:String>73825164</mx:String>
+<mx:String>46152837</mx:String>
+<mx:String>35714286</mx:String>
+<mx:String>68241753</mx:String>
+<mx:String>53847162</mx:String>
+<mx:String>31758246</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--7: 26831475-->
+<mx:String>26831475</mx:String>
+<mx:String>37286415</mx:String>
+<mx:String>73168524</mx:String>
+<mx:String>42586137</mx:String>
+<mx:String>62713584</mx:String>
+<mx:String>48531726</mx:String>
+<mx:String>57413862</mx:String>
+<mx:String>51468273</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--8: 27368514-->
+<mx:String>27368514</mx:String>
+<mx:String>52468317</mx:String>
+<mx:String>72631485</mx:String>
+<mx:String>58413627</mx:String>
+<mx:String>47531682</mx:String>
+<mx:String>28613574</mx:String>
+<mx:String>41586372</mx:String>
+<mx:String>71386425</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--9: 27581463-->
+<mx:String>27581463</mx:String>
+<mx:String>42736815</mx:String>
+<mx:String>72418536</mx:String>
+<mx:String>63581427</mx:String>
+<mx:String>57263184</mx:String>
+<mx:String>48136275</mx:String>
+<mx:String>36418572</mx:String>
+<mx:String>51863724</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--10: 35281746(對稱解)-->
+<mx:String>35281746</mx:String>
+<mx:String>46827135</mx:String>
+<mx:String>64718253</mx:String>
+<mx:String>53172864</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--11: 35841726-->
+<mx:String>35841726</mx:String>
+<mx:String>36824175</mx:String>
+<mx:String>64158273</mx:String>
+<mx:String>37285146</mx:String>
+<mx:String>63175824</mx:String>
+<mx:String>42857136</mx:String>
+<mx:String>62714853</mx:String>
+<mx:String>57142863</mx:String>
+		</mx:Array>
+		<mx:Array>
+		<!--12: 52814736-->
+<mx:String>52814736</mx:String>
+<mx:String>36815724</mx:String>
+<mx:String>47185263</mx:String>
+<mx:String>36258174</mx:String>
+<mx:String>63184275</mx:String>
+<mx:String>57248136</mx:String>
+<mx:String>63741825</mx:String>
+<mx:String>42751863</mx:String>
+		</mx:Array>
+	</mx:Array>
+	
+	<mx:HBox width="100%">
+		<mx:Tile horizontalGap="0" verticalGap="0" width="538" height="538" dropShadowEnabled="true" borderStyle="solid">
+			<mx:Repeater id="boardRep">
+				<com:BoardElement id="boardElement" label="{boardRep.currentIndex}" 
+					styleName="{(boardRep.currentItem.x+boardRep.currentItem.y)%2?'deco2':'deco1'}" 
+					width="67" height="67" 
+					click="buttonClick(event)"/>
+			</mx:Repeater>
+		</mx:Tile>
+		<mx:VBox width="100%" height="100%">
+			<mx:VBox width="100%" height="100%" verticalAlign="middle" horizontalAlign="center" verticalGap="0" paddingBottom="12" paddingTop="12">
+				<mx:ViewStack id="vs_sol" width="100%" creationPolicy="all">
+					<mx:VBox width="90%" horizontalAlign="left" verticalGap="0" height="180" label="求解情況" showEffect="{fadeIn}" hideEffect="{fadeOut}" fontFamily="微軟正黑體">
+						<mx:Label text="求解情況" fontWeight="bold" fontSize="15" fontFamily="微軟正黑體"/>
+						<mx:TileList dataProvider="{foundCount}" labelFunction="solFN" rowCount="6" columnCount="2" width="100%" height="100%" textAlign="left" id="solutionBox" direction="vertical">
+							<mx:click>solutionDetail.dataProvider=getAllSolution(solutionBox.selectedItem.num);vs_sol.selectedIndex=1</mx:click>
+						</mx:TileList>
+					</mx:VBox>
+					<mx:VBox label="詳細資料" width="100%" height="100%" showEffect="{fadeIn}" hideEffect="{fadeOut}">
+						<mx:Label text="獨立解清單 - #{solutionBox.selectedItem.num+1} - 再點一次跳回原畫面" fontWeight="bold" fontFamily="微軟正黑體"/>
+						<mx:TileList width="100%" rowCount="4" columnCount="2" id="solutionDetail" labelFunction="detailFN" click="vs_sol.selectedIndex=0"></mx:TileList>
+					</mx:VBox>
+					<mx:VBox label="破台" width="100%" height="100%" verticalGap="0" click="vs_sol.selectedIndex=0;" showEffect="{fadeIn}" hideEffect="{fadeOut}">
+						<mx:Label text="破臺了！" fontWeight="bold" fontFamily="微軟正黑體"/>
+						<mx:Label text="恭喜破臺！" fontSize="36" textAlign="center" width="100%" color="#1200FF" height="45"/>
+						<mx:Text text="抱歉我沒有華麗的特效，不過所有解都找到了！這是一件值得恭喜的事！放心，不會洗掉你的紀錄讓你嚇到，不過，歡呼吧XD！&#xa;對了，按一下回主畫面。" width="100%"/>
+						<mx:Text text="by Andy 20120613" textAlign="right" fontWeight="bold" width="100%"/>
+										
+					</mx:VBox>
+				</mx:ViewStack>
+				<mx:HRule height="30" width="95%"/>
+				<mx:ViewStack id="vs_ind" width="100%" creationPolicy="all">	
+					<mx:HBox verticalAlign="middle" width="100%" horizontalAlign="center" label="嘗試中" showEffect="{fadeIn}" hideEffect="{fadeOut}" fontSize="36">
+						<mx:Label text="你目前放了"/>
+						<mx:TextInput editable="false" textAlign="center" fontSize="48" text="{queenAmount}" width="90" fontFamily="Arial"/>
+						<mx:Label text="隻皇后"/>
+					</mx:HBox>
+					<mx:HBox label="成功" width="100%" height="100%" horizontalAlign="center" color="#3C6E3C" showEffect="{fadeIn}" hideEffect="{fadeOut}" verticalAlign="middle" fontSize="24" fontFamily="Segoe Script">
+						<mx:Label text="Congratulations!" fontWeight="normal"/>
+						<mx:Label id="indicator1" fontFamily="微軟正黑體"/>
+						<mx:Label id="indicator2"/>
+					</mx:HBox>
+					<mx:HBox label="失敗" width="100%" height="100%" color="#FF5A5A" fontSize="24" showEffect="{fadeIn}" hideEffect="{fadeOut}" verticalAlign="middle" horizontalAlign="center">
+						<mx:Label text="Oops, keep trying!" fontFamily="Segoe Script"/>
+					</mx:HBox>
+				</mx:ViewStack>
+				<mx:Spacer height="5"/>
+				<mx:HBox width="100%" fontSize="20" verticalAlign="middle" horizontalAlign="center">
+					<mx:Label text="目前得分"/>
+					<mx:TextInput editable="false" fontSize="24" textAlign="center" width="90" text="{nowScore}" fontFamily="Courier New"/>
+				</mx:HBox>
+				<mx:Button label="清除全部記錄按這裡" height="30" width="200" id="clearConfirm" visible="false" click="resetAll()"/>
+				<mx:HBox width="90%" horizontalAlign="center" fontSize="24" verticalAlign="middle" paddingBottom="10">
+					<mx:Button label="清　除　畫　面" click="clearBoard()" styleName="primaryButton" fontFamily="微軟正黑體"/>
+				</mx:HBox>
+			</mx:VBox>
+			<mx:HBox width="100%" borderStyle="solid" backgroundColor="#FFFFFF" backgroundAlpha="0.8" horizontalAlign="center" paddingLeft="5" paddingRight="5" dropShadowEnabled="true" cornerRadius="8">
+				<mx:Text text="Designed by Andy. 20120613 Rev.&#xa;http://andy0130tw.blogspot.com/" fontFamily="Segoe Script" letterSpacing="4" textAlign="center" leading="-6"/>
+			</mx:HBox>
+		</mx:VBox>
+	</mx:HBox>
+	<mx:Style source="skin/yflexskin.css"/>
+	<mx:Fade id="fadeIn" alphaFrom="0" alphaTo="1" duration="400"/>
+	<mx:Fade id="fadeOut" alphaFrom="1" alphaTo="0" duration="400"/>
+</mx:Application>

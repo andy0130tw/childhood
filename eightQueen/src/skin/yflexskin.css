@@ -1,0 +1,44 @@
+global
+{
+   color: #4d4d4d;
+   fontFamily: "Meiryo",微軟正黑體;
+   fontSize: 14;
+	themeColor: #99CDFF;
+}
+Application
+{
+	backgroundImage: Embed(source="yflexskin.swf",symbol="BackgroundImage");
+}
+Button
+{
+	disabledSkin: Embed(source="yflexskin.swf", symbol="Button_disabledSkin");
+	downSkin: Embed(source="yflexskin.swf", symbol="Button_downSkin");
+	overSkin: Embed(source="yflexskin.swf", symbol="Button_overSkin");
+	upSkin: Embed(source="yflexskin.swf", symbol="Button_upSkin");
+	paddingLeft: 14;
+	paddingRight: 14;
+	paddingTop: 5;
+	paddingBottom: 5;
+	fontWeight: normal;
+}
+.deco1
+{
+	backgroundColor: #FFCE9E;
+	
+}
+.deco2
+{
+	backgroundColor: #E59F5B;
+}
+
+.primaryButton
+{
+	color: #ffffff;
+	textRollOverColor: #ffffff;
+	textSelectedColor: #ffffff;
+	disabledSkin: Embed(source="yflexskin.swf", symbol="primaryButton_disabledSkin");
+	downSkin: Embed(source="yflexskin.swf", symbol="primaryButton_downSkin");
+	overSkin: Embed(source="yflexskin.swf", symbol="primaryButton_overSkin");
+	upSkin: Embed(source="yflexskin.swf", symbol="primaryButton_upSkin");
+	paddingTop: 2;
+}
