@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mx:Application xmlns:mx="http://www.adobe.com/2006/mxml" layout="absolute" fontSize="12" fontFamily="微軟正黑體" backgroundGradientAlphas="[1.0, 1.0]" backgroundGradientColors="[#FFFBBD, #FFFBBD]" width="400" height="472" creationComplete="init()" themeColor="#FFA800">
+	<mx:Script>
+		<![CDATA[
+			public const I:String="A柱";
+			public const A:String="B柱";
+			public const F:String="C柱";
+			
+			public const CON1:String="將 <font color='#3333ff'>";
+			public const CON2:String="</font> 上的 <font color='#00aa00'>";
+			public const CON3:String="</font> 號盤移到 <font color='#3333ff'>";
+			public const CON4:String="</font>";
+			
+			public const STEP1:String="第<font face='Comic Sans MS'>";
+			public const STEP2:String="</font>步  ";
+			
+			public var steps:Array=new Array();
+			public const INTRODUCTION:String="<font size='18'><b>關於河內塔</b></font><br />河內塔是一個非常有趣的數學問題，題目為：有三根柱子A、B、C，A桿上有n個(n>1)穿孔圓盤，盤的尺寸由下到上依次變小。要求按下列規則將所有圓盤移至C柱：(1)每次只能移動一個圓盤；(2)大盤不能疊在小盤上面。" + 
+					"\n這個問題雖然簡單，但當n值稍稍增加，你恐怕到老也無法完成（題目設計時為n=64）。實際上，解決這個問題時，有一個結構化的方法；我們可以把它想成許多子問題的集合，每一個子問題都在重複相同的動作。<b>像這樣以相似方法處理事物的過程，我們稱為遞迴（Recursion）。</b>\n\n" + 
+					"<font size='20'><b>解法</b></font><br />將n個圓盤從A移動到C，就是\n將A柱上方(n-1)個盤子移到B柱→\n將A柱最下面的圓盤移到C柱→\n將B柱的所有盤子移到C柱；\n而如此一來，又重複將(n-1)個盤子由A柱移到B柱...\n只有當n=1時，直接將A柱的盤子移到C柱。最後我們可以用數學的方式寫下所需的解法數，而求得總解法數為<font size='+2'><b>2^n-1</b></font>。\n\n" + 
+					"<font size='20'><b>程式說明</b></font><br />這是一個簡單的程式，經由函數重複呼叫自己而得。依照上面的簡易步驟，我們可以將程式寫得清晰有力。\n值得注意的一點是：為了避免n值太大可能造成電腦負擔，將n值的範圍做了適當的限制。然而，您也可以試著玩玩實際的河內塔遊戲，就如《猩球崛起》中猩猩們所玩的那樣。\n\n" + 
+					"<font size='20'><b>參考資料</b></font><br />維基百科：<a href='http://zh.wikipedia.org/wiki/河內塔' target='_blank'>http://zh.wikipedia.org/wiki/河內塔</a>\n\n" + 
+					"<font size='20'><b>作者</b></font><br />作者：Andy~*，Flash/Flex程式寫作菜鳥一枚。對於本程式若有任何問題，歡迎來信至andy0130tw@yahoo.com.tw討論。";
+			public var ecount:int=0;
+			public function init():void{
+				showIntroduction();
+			}
+			public function showIntroduction():void{
+				status.text="介紹：";
+				btn1.enabled=false;
+				txtbox.verticalScrollPosition=0;
+				txtbox.htmlText="<font size='14' color='#000033'>"+INTRODUCTION+"</font>";
+			}
+			
+			public function solve():void{
+				btn1.enabled=true;
+				steps=new Array();
+				towers(ns.value,I,A,F);
+				status.text="解法：";
+				txtbox.verticalScrollPosition=0;
+				txtbox.htmlText=steps.join("\n");
+				txtbox.htmlText+="\n完成，共 <font size='+6' face='Comic Sans MS'><b>"+String(steps.length)+"</b></font> 步。";
+				//fadeIn.play();
+				//fadeIn.play(new Array(txtbox));
+			}
+			
+			public function towers(n:uint,i:String,a:String,f:String):void{
+				if(n==1){
+					pushStep(CON1+i+CON2+"1"+CON3+f+CON4);
+				}else{
+					towers(n-1,i,f,a);
+					pushStep(CON1+i+CON2+String(n)+CON3+f+CON4);
+					towers(n-1,a,i,f);
+				}
+			}
+			public function pushStep(str:String):void{
+				steps.push(STEP1+String(steps.length+1)+STEP2+str);
+			}
+			
+			private function easteregg():void{
+				ecount++;
+				if(ecount>=50){
+					btn1.enabled=true;
+					steps=new Array();
+					towers(10,I,A,F);
+					status.text="解法：";
+					txtbox.verticalScrollPosition=0;
+					txtbox.htmlText=steps.join("\n");
+					txtbox.htmlText+="\n完成，共 <font size='+6' face='Comic Sans MS'><b>"+String(steps.length)+"</b></font> 步。";
+					txtbox.htmlText+="\n<font size='+12'>點圖片很好玩，對吧?!</font>";
+					ecount=0;
+				}
+			}
+		]]>
+	</mx:Script>
+	<mx:Text text="河內塔問題" fontSize="36" fontFamily="新細明體" x="10" y="10" selectable="false">
+		<mx:filters>
+			<mx:DropShadowFilter color="#333333" angle="90" distance="1"/>
+		</mx:filters>
+	</mx:Text>
+	<mx:NumericStepper x="274" y="82" minimum="2" maximum="7" stepSize="1" fontSize="18" textAlign="center" width="50" id="ns"/>
+	<mx:Button x="12" y="84" label="介紹" fontSize="16" click="showIntroduction()" id="btn1"/>
+	<mx:Button x="332" y="84" label="求解" fontSize="16" click="solve()"/>
+	<mx:Label x="10" y="130" text="解法：" fontSize="14" id="status"/>
+	<mx:TextArea x="10" y="157" width="380" height="271" id="txtbox" fontSize="16" leading="8" liveScrolling="true" paddingTop="4" paddingBottom="4" paddingLeft="3" paddingRight="3" editable="false"/>
+	<mx:Image x="240" y="10" source="@Embed('tower.jpg')" width="150" height="66" id="img" click="easteregg()"/>
+	<mx:Label x="240" y="84" text="n =" fontSize="18"/>
+	<mx:HRule x="10" y="125" width="380"/>
+	<mx:Label x="10" y="54" text="v1.0 20111210Rev. 製作：潘廣霖"/>
+	<mx:LinkButton label="Andy's Blog : http://andy0130tw.blogspot.com/" right="10" bottom="10" click="navigateToURL(new URLRequest('http://andy0130tw.blogspot.com/'), '_blank');"/>
+</mx:Application>
